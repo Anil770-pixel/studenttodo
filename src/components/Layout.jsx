@@ -13,9 +13,9 @@ const Layout = () => {
             </div>
 
             <Sidebar />
-
-            <main className="pl-64 min-h-screen relative">
-                <div className="p-8 max-w-[1920px] mx-auto animate-fade-in">
+            
+            <main className="pl-0 md:pl-64 min-h-screen relative pb-20 md:pb-0">
+                <div className="p-4 md:p-8 max-w-[1920px] mx-auto animate-fade-in">
                     <Outlet />
                 </div>
             </main>

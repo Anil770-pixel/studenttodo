@@ -373,12 +373,12 @@ const Dashboard = () => {
                 </div>
             )}
 
-            <div className="flex justify-between items-end">
-                <div>
-                    <h1 className="text-4xl font-bold text-white tracking-tight">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:gap-4">
+                <div className="flex-1 w-full">
+                    <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
                         {timeContext.greeting}, <span className="text-gradient">{profile?.fullName?.split(' ')[0] || 'Student'}</span> 🚀
                     </h1>
-                    <p className="text-slate-400 mt-2 text-lg">StudentOS Command Center — your mission brief for today.</p>
+                    <p className="text-slate-400 mt-2 text-sm md:text-lg">StudentOS Command Center — your mission brief for today.</p>
                 </div>
                 {missionStreaks.length > 0 && (
                     <div className="flex items-center gap-3 bg-slate-900/50 border border-slate-800 px-5 py-3 rounded-2xl backdrop-blur-sm shadow-xl self-start">
@@ -401,7 +401,7 @@ const Dashboard = () => {
             <LayoutGroup>
                 <motion.div 
                     layout
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6"
                 >
                     <AnimatePresence mode="popLayout">
                         {missionStreaks.map((streak) => (
