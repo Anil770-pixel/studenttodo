@@ -1,0 +1,11 @@
+
+> student-os@0.0.0 lint
+> eslint .
+
+
+C:\Users\anill\Desktop\antigravity project\src\lib\radar.js
+  240:1  warning  Unused eslint-disable directive (no problems were reported from 'no-unused-vars')
+
+✖ 1 problem (0 errors, 1 warning)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+

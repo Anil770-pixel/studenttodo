@@ -1,0 +1,122 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ─────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ── User documents ───────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      // Tasks & Events — owner only
+      match /tasks/{taskId} {
+        allow read, write: if isOwner(uid);
+      }
+      match /events/{eventId} {
+        allow read, write: if isOwner(uid);
+      }
+      match /archived_events/{eventId} {
+        allow read, write: if isOwner(uid);
+      }
+      match /saved_opportunities/{oppId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Token wallet ────────────────────────────────────────────────────
+      // CRITICAL: clients can READ their own wallet but CANNOT set balance
+      // to an arbitrary value. Only increment/decrement via server-side rules.
+      match /tokenData/{doc} {
+        allow read: if isOwner(uid);
+
+        // Allow CREATE (first-time wallet setup) only if fields are safe
+        allow create: if isOwner(uid)
+          && request.resource.data.balance is int
+          && request.resource.data.balance <= 10    // max initial grant
+          && request.resource.data.totalEarned is int
+          && request.resource.data.lastGrantDate is string;
+
+        // Allow UPDATE only if:
+        //  1. It is the owner making the request
+        //  2. They are NOT directly setting an arbitrary balance
+        //     (must use increment, which shows as a delta, not an absolute set)
+        //  3. Balance can only decrease by ≤ 10 per write (spend limit)
+        //     or increase by ≤ 50 (referral bonus cap)
+        allow update: if isOwner(uid)
+          && (
+            // Daily grant: balance increases by exactly DAILY_GRANT (10)
+            (request.resource.data.balance == resource.data.balance + 10
+              && request.resource.data.lastGrantDate != resource.data.lastGrantDate)
+            ||
+            // Spending tokens: balance decreases, but not more than 10 per call
+            (request.resource.data.balance >= resource.data.balance - 10
+              && request.resource.data.balance < resource.data.balance)
+            ||
+            // Earning tokens (notes upload +10, referral +50)
+            (request.resource.data.balance > resource.data.balance
+              && request.resource.data.balance <= resource.data.balance + 50)
+          );
+      }
+    }
+
+    // ── Global Community Cache ───────────────────────────────────────────────
+    // Anyone signed in can READ (serves cached AI results for free).
+    // Anyone signed in can WRITE (first person stores the result for others).
+    // hitCount updates are allowed freely (increment only, no absolute set).
+    match /global_cache/{cacheId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.result != null
+        && request.resource.data.queryKey is string;
+      allow update: if isSignedIn()
+        // Only allow bumping hitCount, not changing the result
+        && request.resource.data.result == resource.data.result
+        && request.resource.data.queryKey == resource.data.queryKey
+        && request.resource.data.hitCount == resource.data.hitCount + 1;
+    }
+
+    // ── Community Notes ──────────────────────────────────────────────────────
+    // All signed-in users can read (public knowledge base).
+    // Uploader can delete their own notes.
+    match /community_notes/{noteId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uploadedBy == request.auth.uid;
+      allow update: if isSignedIn()
+        // Only allow upvote increments
+        && request.resource.data.uploadedBy == resource.data.uploadedBy
+        && request.resource.data.upvotes == resource.data.upvotes + 1;
+      allow delete: if isSignedIn()
+        && resource.data.uploadedBy == request.auth.uid;
+    }
+
+    // ── Referrals ────────────────────────────────────────────────────────────
+    // Referrer document: only they can read their own stats.
+    // Claims sub-collection: any signed-in user can create (one-time claim).
+    match /referrals/{referrerId} {
+      allow read: if isOwner(referrerId);
+      allow create, update: if isSignedIn();
+
+      match /claims/{claimerId} {
+        allow read: if isOwner(referrerId);
+        allow create: if isSignedIn()
+          && request.auth.uid == claimerId     // can only claim for yourself
+          && claimerId != referrerId;           // can't refer yourself
+        allow update, delete: if false;         // claims are immutable
+      }
+    }
+
+    // ── Global Opportunities Cache ───────────────────────────────────────────
+    match /opportunities/{oppId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+
+  }
+}

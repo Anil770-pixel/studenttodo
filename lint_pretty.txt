@@ -1,0 +1,57 @@
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\components\CalendarTile.jsx[24m[0m
+[0m  [2m3:10[22m  [31merror[39m  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\components\Card.jsx[24m[0m
+[0m  [2m2:10[22m  [31merror[39m  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\components\Sidebar.jsx[24m[0m
+[0m  [2m4:10[22m  [31merror[39m  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\context\AuthContext.jsx[24m[0m
+[0m  [2m15:14[22m  [31merror[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\context\ChatContext.jsx[24m[0m
+[0m  [2m5:14[22m  [31merror[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\lib\radar.js[24m[0m
+[0m  [2m110:15[22m  [31merror[39m    'calendarContext' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m  [2m246:1[22m   [33mwarning[39m  Unused eslint-disable directive (no problems were reported from 'no-unused-vars')[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\AiSchedule.jsx[24m[0m
+[0m    [2m4:10[22m  [31merror[39m  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m  [2m162:26[22m  [31merror[39m  'e2' is defined but never used                                                 [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\Analytics.jsx[24m[0m
+[0m  [2m1:10[22m  [31merror[39m  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\Calendar.jsx[24m[0m
+[0m  [2m3:29[22m  [31merror[39m  'where' is defined but never used. Allowed unused vars must match /^[A-Z_]/u      [2mno-unused-vars[22m[0m
+[0m  [2m3:48[22m  [31merror[39m  'doc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u        [2mno-unused-vars[22m[0m
+[0m  [2m3:53[22m  [31merror[39m  'getDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u     [2mno-unused-vars[22m[0m
+[0m  [2m3:61[22m  [31merror[39m  'updateDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\Competitions.jsx[24m[0m
+[0m  [2m208:38[22m  [31merror[39m  'err' is defined but never used  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\Dashboard.jsx[24m[0m
+[0m  [2m4:31[22m  [31merror[39m  'query' is defined but never used. Allowed unused vars must match /^[A-Z_]/u    [2mno-unused-vars[22m[0m
+[0m  [2m4:38[22m  [31merror[39m  'where' is defined but never used. Allowed unused vars must match /^[A-Z_]/u    [2mno-unused-vars[22m[0m
+[0m  [2m4:45[22m  [31merror[39m  'orderBy' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m  [2m4:54[22m  [31merror[39m  'limit' is defined but never used. Allowed unused vars must match /^[A-Z_]/u    [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\Login.jsx[24m[0m
+[0m  [2m3:10[22m  [31merror[39m  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\Profile.jsx[24m[0m
+[0m  [2m5:15[22m  [31merror[39m  'updateDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\SignUp.jsx[24m[0m
+[0m  [2m3:10[22m  [31merror[39m  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mC:\Users\anill\Desktop\antigravity project\src\pages\Todos.jsx[24m[0m
+[0m  [2m42:23[22m  [31merror[39m  'q' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[31m[1m✖ 23 problems (22 errors, 1 warning)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  0 errors and 1 warning potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

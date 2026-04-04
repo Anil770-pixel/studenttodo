@@ -1,0 +1,61 @@
+﻿
+> student-os@0.0.0 lint
+> eslint .
+
+
+C:\Users\anill\Desktop\antigravity project\src\components\CalendarTile.jsx
+  3:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\components\Card.jsx
+  2:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\components\Sidebar.jsx
+  4:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\context\AuthContext.jsx
+  15:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\anill\Desktop\antigravity project\src\context\ChatContext.jsx
+  5:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\anill\Desktop\antigravity project\src\lib\radar.js
+  110:15  error    'calendarContext' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  246:1   warning  Unused eslint-disable directive (no problems were reported from 'no-unused-vars')
+
+C:\Users\anill\Desktop\antigravity project\src\pages\AiSchedule.jsx
+    4:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  162:26  error  'e2' is defined but never used                                                 no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\pages\Analytics.jsx
+  1:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\pages\Calendar.jsx
+  3:29  error  'where' is defined but never used. Allowed unused vars must match /^[A-Z_]/u      no-unused-vars
+  3:48  error  'doc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u        no-unused-vars
+  3:53  error  'getDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u     no-unused-vars
+  3:61  error  'updateDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\pages\Competitions.jsx
+  208:38  error  'err' is defined but never used  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\pages\Dashboard.jsx
+  4:31  error  'query' is defined but never used. Allowed unused vars must match /^[A-Z_]/u    no-unused-vars
+  4:38  error  'where' is defined but never used. Allowed unused vars must match /^[A-Z_]/u    no-unused-vars
+  4:45  error  'orderBy' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  4:54  error  'limit' is defined but never used. Allowed unused vars must match /^[A-Z_]/u    no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\pages\Login.jsx
+  3:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\pages\Profile.jsx
+  5:15  error  'updateDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\pages\SignUp.jsx
+  3:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\Users\anill\Desktop\antigravity project\src\pages\Todos.jsx
+  42:23  error  'q' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+Γ£û 23 problems (22 errors, 1 warning)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
