@@ -19,7 +19,7 @@ const Assessments = () => {
         status: 'pending' // pending, done, missed
     });
 
-    const [importMode, setImportMode] = useState('manual'); // manual, turbo, ai
+    const [importMode, setImportMode] = useState('ai'); // ai, manual, turbo
     const [swayamData, setSwayamData] = useState({
         name: '',
         duration: 8
@@ -100,43 +100,24 @@ const Assessments = () => {
 
     const handleTurboImport = async () => {
         if (!swayamData.name || !auth.currentUser) return;
-
-        // Official SWAYAM Jan 2026 Baseline: Starts Jan 19 (Monday)
-        const startDate = new Date('2026-01-19');
+        
+        // Nuked: No more dummy weekly loops.
         const batchItems = [];
 
-        // 1. Weekly Assignments
-        for (let i = 1; i <= swayamData.duration; i++) {
-            // Standard NPTEL Deadline: Week X + 15 days (Usually a Tuesday)
-            const deadline = new Date(startDate);
-            deadline.setDate(startDate.getDate() + (i * 7) + 1); // Tuesday of following week
-            
-            batchItems.push({
-                courseName: swayamData.name,
-                weekNumber: `Assignment Week ${i}`,
-                lastDate: deadline.toISOString().split('T')[0],
-                status: 'pending',
-                type: 'swayam_assignment',
-                createdAt: new Date().toISOString()
-            });
-        }
-
-        // 2. Exam Fee Registration (Usually deadline is ~Mid Feb for Jan session)
+        // Only generate the absolute fixed milestones if user wants "Turbo"
         batchItems.push({
             courseName: swayamData.name,
-            weekNumber: "Exam Fee & Registration Deadline",
+            weekNumber: "Exam Fee Registration",
             lastDate: "2026-02-16",
             status: 'pending',
             type: 'swayam_fee',
             createdAt: new Date().toISOString()
         });
 
-        // 3. Final Exam (Usually April 25/26 for full courses)
-        const examDate = swayamData.duration === 12 ? "2026-04-25" : (swayamData.duration === 8 ? "2026-03-29" : "2026-03-28");
         batchItems.push({
             courseName: swayamData.name,
             weekNumber: "Proctored Final Exam",
-            lastDate: examDate,
+            lastDate: swayamData.duration === 12 ? "2026-04-25" : "2026-03-29",
             status: 'pending',
             type: 'swayam_exam',
             createdAt: new Date().toISOString()
@@ -398,30 +379,24 @@ const Assessments = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex p-1 bg-slate-950 rounded-xl mb-6 border border-slate-800 overflow-x-auto custom-scrollbar">
+                                <div className="flex p-1 bg-slate-950 rounded-xl mb-6 border border-slate-800">
+                                    <button 
+                                        onClick={() => setImportMode('ai')}
+                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${importMode === 'ai' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}
+                                    >
+                                        <Shield size={12} /> AI Smart Paste
+                                    </button>
                                     <button 
                                         onClick={() => setImportMode('manual')}
-                                        className={`shrink-0 px-4 py-2 text-[10px] font-bold rounded-lg transition-all ${importMode === 'manual' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
+                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${importMode === 'manual' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
                                     >
                                         Manual
                                     </button>
                                     <button 
                                         onClick={() => setImportMode('turbo')}
-                                        className={`shrink-0 px-4 py-2 text-[10px] font-bold rounded-lg transition-all ${importMode === 'turbo' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
+                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${importMode === 'turbo' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
                                     >
                                         Turbo
-                                    </button>
-                                    <button 
-                                        onClick={() => setImportMode('ai')}
-                                        className={`shrink-0 px-4 py-2 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${importMode === 'ai' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
-                                    >
-                                        Paste
-                                    </button>
-                                    <button 
-                                        onClick={() => setImportMode('link')}
-                                        className={`shrink-0 px-4 py-2 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${importMode === 'link' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}
-                                    >
-                                        <Plus size={12} /> Smart Link
                                     </button>
                                 </div>
 
@@ -503,64 +478,26 @@ const Assessments = () => {
                                             </button>
                                         </div>
                                     </div>
-                                ) : importMode === 'link' ? (
-                                    <div className="space-y-6">
-                                        <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl">
-                                            <p className="text-xs text-green-400 font-bold flex items-center gap-2">
-                                                <Plus size={14} /> AI Smart Link (Ultra)
-                                            </p>
-                                            <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed italic">
-                                                Paste your Swayam course URL. AI will visit the link, extract the full syllabus, and auto-build your entire 4-12 week schedule.
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2 tracking-wider">Course URL</label>
-                                            <input 
-                                                autoFocus
-                                                type="url" 
-                                                placeholder="https://onlinecourses.swayam2.ac.in/..."
-                                                value={courseUrl}
-                                                onChange={e => setCourseUrl(e.target.value)}
-                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-green-500 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div className="flex gap-3 justify-end mt-8">
-                                            <button 
-                                                type="button" 
-                                                onClick={() => setIsAddModalOpen(false)}
-                                                className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button 
-                                                disabled={!courseUrl.trim() || isParsing}
-                                                onClick={handleAISmartLink}
-                                                className="px-8 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-green-600/20 active:scale-95 disabled:opacity-50"
-                                            >
-                                                {isParsing ? 'Analyzing Link...' : 'Analyze & Shield'}
-                                            </button>
-                                        </div>
-                                    </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="p-3 bg-slate-800 border border-white/5 rounded-xl">
-                                            <p className="text-xs text-slate-300 font-bold flex items-center gap-2">
-                                                <Shield size={14} /> AI Smart Paste (Legacy)
+                                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl">
+                                            <p className="text-xs text-green-400 font-bold flex items-center gap-2">
+                                                <Shield size={14} /> AI Smart Paste (Elite)
                                             </p>
-                                            <p className="text-[10px] text-slate-500 mt-1 italic">
-                                                Paste about course text. Use Smart Link for better results.
+                                            <p className="text-[10px] text-slate-400 mt-1 italic">
+                                                For Swayam courses, copy and paste the "About Course" or "Syllabus" text here. AI will extract exact milestones.
                                             </p>
                                         </div>
                                         <div>
                                             <textarea 
-                                                rows="5"
-                                                placeholder="Paste syllabus text here..."
+                                                autoFocus
                                                 value={syllabusText}
                                                 onChange={e => setSyllabusText(e.target.value)}
-                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none resize-none text-sm"
+                                                placeholder="e.g. Week 1: Introduction... Week 2: Solar Radiation..."
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none min-h-[150px] text-xs leading-relaxed"
                                             />
                                         </div>
-                                        <div className="flex gap-3 justify-end mt-8">
+                                        <div className="flex gap-3 justify-end mt-4">
                                             <button 
                                                 type="button" 
                                                 onClick={() => setIsAddModalOpen(false)}
@@ -571,9 +508,16 @@ const Assessments = () => {
                                             <button 
                                                 disabled={!syllabusText.trim() || isParsing}
                                                 onClick={handleAISmartPaste}
-                                                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                                                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
                                             >
-                                                {isParsing ? 'Processing...' : 'Generate from Text'}
+                                                {isParsing ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                                        Analyzing...
+                                                    </>
+                                                ) : (
+                                                    'Shield This Course'
+                                                )}
                                             </button>
                                         </div>
                                     </div>

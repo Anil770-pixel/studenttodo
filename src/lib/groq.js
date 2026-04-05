@@ -537,50 +537,61 @@ export async function fetchSwayamHTML(url) {
 }
 
 /**
- * Parse Swayam syllabus/about text to extract weeks and deadlines.
+ * NEW: Robust AI Syllabus Parser (Strict JSON only)
  */
-export async function parseSwayamSyllabus(text, isHTML = false) {
-    let cleanText = text;
-    
-    if (isHTML) {
-        // Basic HTML cleanup to reduce token usage
-        cleanText = text
-            .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gim, "")
-            .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gim, "")
-            .replace(/<[^>]+>/g, " ")
-            .replace(/\s+/g, " ")
-            .trim()
-            .substring(0, 8000); // Token limit safety
+export async function parseSwayamSyllabus(text) {
+    if (!text || text.length < 50) {
+        throw new Error("Text too short. Please paste the full syllabus or Course Layout.");
     }
 
-    const prompt = `
-    You are the StudentOS AI Course Parser.
-    Extract the EXACT number of weeks and assignment topics/deadlines from this Swayam course description.
+    const cleanText = text
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .substring(0, 7000);
+
+    const systemPrompt = `
+    You are an elite academic extractor for StudentOS. 
+    Your ONLY task is to read the provided course syllabus and return a valid JSON array of assignments.
     
-    Course Data: "${cleanText}"
-    
-    Reference Semester: Jan-Apr 2026 (Starts approx Jan 19).
-    
-    Rules:
-    1. Identify EXACTLY how many weeks/modules are in the course (e.g., 4, 8, or 12).
-    2. Create ONE assignment object per week.
-    3. Topic titles should be specific (e.g., "Solar Radiation & Angles").
-    4. Estimate deadlines based on a weekly rhythm (usually Tuesdays) starting from Jan 19, 2026, UNLESS specific dates are mentioned.
-    5. Include "Exam Fee Registration" (Feb 16, 2026) and "Final Exam" (Late April 2026).
-    
-    Output ONLY valid JSON:
-    [
-      { "courseName": "extracted name", "weekNumber": "Assignment Week 1", "lastDate": "2026-01-27", "type": "swayam_assessment", "topic": "Topic Name" },
-      ...
-    ]
+    RULES:
+    1. Output MUST be ONLY a raw JSON array. No markdown, no "Here is your JSON", no conversational text.
+    2. Extract the exact course name.
+    3. Identify each week/module. Use "Week 01", "Week 02", etc.
+    4. Calculate the 'lastDate' (ISO format YYYY-MM-DD). If no specific dates are given, use Jan 19, 2026 as the semester start and space assignments by 7 days (usually Tuesday).
+    5. Always include "Swayam Exam Fee" (Feb 16, 2026) and "Final Proctored Exam" (Late April 2026).
+    6. Object format: { "courseName": string, "weekNumber": string, "topic": string, "lastDate": string, "type": "swayam_assessment" }
     `;
 
+    const userPrompt = `Course Content: "${cleanText}"`;
+
     try {
-        const completion = await getGroqCompletion(prompt);
-        const content = completion.choices[0]?.message?.content || "[]";
-        return parseGroqJSON(content);
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.1-70b-versatile",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: 0.1, // Low temp for super-strict JSON
+                response_format: { type: "json_object" } // Groq supports this for better JSON results
+            })
+        });
+
+        if (!response.ok) throw new Error("Groq API error");
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content || "[]";
+        
+        // Handle cases where Groq might wrap the array in a "data" or "assignments" key
+        const parsed = JSON.parse(content);
+        return Array.isArray(parsed) ? parsed : (parsed.assignments || parsed.data || []);
     } catch (e) {
-        console.error("Syllabus Parse Error:", e);
+        console.error("Master Parser Error:", e);
         throw e;
     }
 }
