@@ -172,6 +172,26 @@ const Profile = () => {
                                     {user?.email}
                                 </div>
                             </div>
+                            <div className="pt-2 border-t border-white/5">
+                                <label className="block text-xs font-bold text-neon-cyan uppercase mb-1 tracking-widest">Extension Sync Token</label>
+                                <div className="flex gap-2">
+                                    <div className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-[10px] font-mono text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap">
+                                        {user?.uid}
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(user?.uid);
+                                            alert("Sync Token copied! Paste this into your StudentOS Chrome Extension.");
+                                        }}
+                                        className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold transition-all"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                                <p className="text-[9px] text-slate-600 mt-2 italic leading-tight">
+                                    Use this token in the StudentOS Web Clipper to sync Swayam courses directly to this account.
+                                </p>
+                            </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">University</label>
                                 <input

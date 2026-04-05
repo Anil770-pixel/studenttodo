@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    :root {
+      --bg: #0B0C10;
+      --card: #1F2833;
+      --text: #C5C6C7;
+      --accent: #66FCF1;
+      --accent-dim: #45A29E;
+    }
+
+    body {
+      width: 320px;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      border-radius: 12px;
+    }
+
+    .container {
+      padding: 24px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+    }
+
+    h1 {
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 0;
+      color: #fff;
+    }
+
+    .status-card {
+      background: var(--card);
+      border: 1px solid rgba(102, 252, 241, 0.1);
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+    }
+
+    .label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent-dim);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    .input-field {
+      width: 100%;
+      background: #000;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #fff;
+      font-size: 12px;
+      margin-top: 4px;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent);
+    }
+
+    .btn {
+      width: 100%;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn:hover {
+      background: #fff;
+      box-shadow: 0 0 20px rgba(102, 252, 241, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 10px;
+      color: #444;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo"></div>
+      <h1>StudentOS Sync</h1>
+    </div>
+
+    <div class="status-card" id="course-info">
+      <div class="label">Detected Course</div>
+      <div class="value" id="course-name">Searching...</div>
+      
+      <div class="label">Duration</div>
+      <div class="value" id="course-weeks">-- Weeks</div>
+
+      <div class="label">User ID (Sync Goal)</div>
+      <input type="text" id="user-id" placeholder="Paste your User ID here" class="input-field">
+    </div>
+
+    <button id="sync-btn" class="btn">Sync Course to Shield</button>
+
+    <div class="footer">StudentOS Web Clipper v1.0</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

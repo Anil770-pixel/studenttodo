@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "StudentOS Sync",
+  "version": "1.0",
+  "description": "One-click course sync for StudentOS from Swayam.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://onlinecourses.swayam2.ac.in/*",
+    "https://firestore.googleapis.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://onlinecourses.swayam2.ac.in/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}
