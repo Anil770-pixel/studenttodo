@@ -17,6 +17,70 @@ const Assessments = () => {
         status: 'pending' // pending, done, missed
     });
 
+    const [importMode, setImportMode] = useState('manual'); // manual, turbo
+    const [swayamData, setSwayamData] = useState({
+        name: '',
+        duration: 8
+    });
+
+    const handleTurboImport = async () => {
+        if (!swayamData.name || !auth.currentUser) return;
+
+        // Official SWAYAM Jan 2026 Baseline: Starts Jan 19 (Monday)
+        const startDate = new Date('2026-01-19');
+        const batchItems = [];
+
+        // 1. Weekly Assignments
+        for (let i = 1; i <= swayamData.duration; i++) {
+            // Standard NPTEL Deadline: Week X + 15 days (Usually a Tuesday)
+            const deadline = new Date(startDate);
+            deadline.setDate(startDate.getDate() + (i * 7) + 1); // Tuesday of following week
+            
+            batchItems.push({
+                courseName: swayamData.name,
+                weekNumber: `Assignment Week ${i}`,
+                lastDate: deadline.toISOString().split('T')[0],
+                status: 'pending',
+                type: 'swayam_assignment',
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        // 2. Exam Fee Registration (Usually deadline is ~Mid Feb for Jan session)
+        batchItems.push({
+            courseName: swayamData.name,
+            weekNumber: "Exam Fee & Registration Deadline",
+            lastDate: "2026-02-16",
+            status: 'pending',
+            type: 'swayam_fee',
+            createdAt: new Date().toISOString()
+        });
+
+        // 3. Final Exam (Usually April 25/26 for full courses)
+        const examDate = swayamData.duration === 12 ? "2026-04-25" : (swayamData.duration === 8 ? "2026-03-29" : "2026-03-28");
+        batchItems.push({
+            courseName: swayamData.name,
+            weekNumber: "Proctored Final Exam",
+            lastDate: examDate,
+            status: 'pending',
+            type: 'swayam_exam',
+            createdAt: new Date().toISOString()
+        });
+
+        try {
+            const promises = batchItems.map(item => 
+                addDoc(collection(db, "users", auth.currentUser.uid, "assessments"), item)
+            );
+            await Promise.all(promises);
+            setIsAddModalOpen(false);
+            setSwayamData({ name: '', duration: 8 });
+            alert(`Turbo Success! Managed to track ${batchItems.length} course touchpoints.`);
+        } catch (error) {
+            console.error("Turbo Import Error:", error);
+            alert("Failed to turbo import. Connection issue?");
+        }
+    };
+
     useEffect(() => {
         if (!auth.currentUser) return;
         const q = query(collection(db, "users", auth.currentUser.uid, "assessments"), orderBy("lastDate", "asc"));
@@ -225,57 +289,133 @@ const Assessments = () => {
                             className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden relative shadow-2xl"
                         >
                             <div className="p-6">
-                                <h3 className="text-xl font-bold text-white mb-6">Track New Assessment</h3>
-                                <form onSubmit={handleAddAssessment} className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Course Name</label>
-                                        <input 
-                                            required autoFocus
-                                            type="text" 
-                                            placeholder="e.g. SWAYAM: Joy of Computing"
-                                            value={formData.courseName}
-                                            onChange={e => setFormData({...formData, courseName: e.target.value})}
-                                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none"
-                                        />
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-xl font-bold text-white">Track New Assessment</h3>
+                                    <div className="px-2 py-1 bg-green-500/20 text-green-400 text-[10px] font-black uppercase rounded flex items-center gap-1">
+                                        <Shield size={10} /> Smart Shield
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                </div>
+
+                                <div className="flex p-1 bg-slate-950 rounded-xl mb-6 border border-slate-800">
+                                    <button 
+                                        onClick={() => setImportMode('manual')}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${importMode === 'manual' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
+                                    >
+                                        Manual Entry
+                                    </button>
+                                    <button 
+                                        onClick={() => setImportMode('turbo')}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${importMode === 'turbo' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}
+                                    >
+                                        <Clock size={14} /> Turbo SWAYAM
+                                    </button>
+                                </div>
+
+                                {importMode === 'manual' ? (
+                                    <form onSubmit={handleAddAssessment} className="space-y-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Week / Module</label>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Course Name</label>
                                             <input 
+                                                required autoFocus
                                                 type="text" 
-                                                placeholder="e.g. Week 4"
-                                                value={formData.weekNumber}
-                                                onChange={e => setFormData({...formData, weekNumber: e.target.value})}
+                                                placeholder="e.g. SWAYAM: Joy of Computing"
+                                                value={formData.courseName}
+                                                onChange={e => setFormData({...formData, courseName: e.target.value})}
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Week / Module</label>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="e.g. Week 4"
+                                                    value={formData.weekNumber}
+                                                    onChange={e => setFormData({...formData, weekNumber: e.target.value})}
+                                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Last Date</label>
+                                                <input 
+                                                    required
+                                                    type="date" 
+                                                    value={formData.lastDate}
+                                                    onChange={e => setFormData({...formData, lastDate: e.target.value})}
+                                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none [color-scheme:dark]"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-3 justify-end mt-8">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setIsAddModalOpen(false)}
+                                                className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                type="submit" 
+                                                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95"
+                                            >
+                                                Save to Shield
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Course Name</label>
+                                            <input 
+                                                required autoFocus
+                                                type="text" 
+                                                placeholder="e.g. Data structures using Python"
+                                                value={swayamData.name}
+                                                onChange={e => setSwayamData({...swayamData, name: e.target.value})}
                                                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Last Date</label>
-                                            <input 
-                                                required
-                                                type="date" 
-                                                value={formData.lastDate}
-                                                onChange={e => setFormData({...formData, lastDate: e.target.value})}
-                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none [color-scheme:dark]"
-                                            />
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Select Duration</label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[4, 8, 12].map(d => (
+                                                    <button 
+                                                        key={d}
+                                                        onClick={() => setSwayamData({...swayamData, duration: d})}
+                                                        className={`py-3 rounded-xl border font-bold text-sm transition-all ${swayamData.duration === d ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'}`}
+                                                    >
+                                                        {d} Weeks
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-2">Automagic Setup Details</p>
+                                            <ul className="text-xs text-slate-400 space-y-1.5">
+                                                <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> {swayamData.duration} Weekly Assignments</li>
+                                                <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> Exam Fee Deadline (Feb 16)</li>
+                                                <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> Proctored Exam (April 2026)</li>
+                                                <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> Priority Rescue Notifications</li>
+                                            </ul>
+                                        </div>
+                                        <div className="flex gap-3 justify-end mt-8">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setIsAddModalOpen(false)}
+                                                className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                disabled={!swayamData.name}
+                                                onClick={handleTurboImport}
+                                                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:grayscale"
+                                            >
+                                                Generate Full Schedule
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-3 justify-end mt-8">
-                                        <button 
-                                            type="button" 
-                                            onClick={() => setIsAddModalOpen(false)}
-                                            className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button 
-                                            type="submit" 
-                                            className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95"
-                                        >
-                                            Save to Shield
-                                        </button>
-                                    </div>
-                                </form>
+                                )}
                             </div>
                         </motion.div>
                     </div>

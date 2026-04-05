@@ -10,13 +10,17 @@ const NotificationCenter = ({ isOpen, onClose }) => {
     const { activeReminders } = useReminders();
     const { user } = useAuth();
 
-    const handleMarkDone = async (id) => {
+    const handleMarkDone = async (reminder) => {
         if (!user) return;
-        const taskRef = doc(db, "users", user.uid, "tasks", id);
+        const { id, type } = reminder;
+        const collectionName = type === 'assessment' ? "assessments" : "tasks";
+        const updateData = type === 'assessment' ? { status: 'done' } : { completed: true };
+        
+        const docRef = doc(db, "users", user.uid, collectionName, id);
         try {
-            await updateDoc(taskRef, { completed: true });
+            await updateDoc(docRef, updateData);
         } catch(err) {
-            console.error("Error marking done:", err);
+            console.error(`Error marking ${type} done:`, err);
         }
     };
 
@@ -89,7 +93,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
                                                 <h4 className="text-white font-medium text-sm leading-snug">{rem.title}</h4>
                                                 
                                                 <div className="flex gap-2 mt-4">
-                                                    <button onClick={() => handleMarkDone(rem.id)} className="flex-1 py-1.5 px-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-bold rounded-lg transition-colors border border-emerald-500/20 flex justify-center items-center gap-1">
+                                                    <button onClick={() => handleMarkDone(rem)} className="flex-1 py-1.5 px-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-bold rounded-lg transition-colors border border-emerald-500/20 flex justify-center items-center gap-1">
                                                         <Check size={14} /> Done
                                                     </button>
                                                     <button onClick={() => handleSnooze(rem.id)} className="flex-1 py-1.5 px-3 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded-lg transition-colors flex justify-center items-center gap-1">

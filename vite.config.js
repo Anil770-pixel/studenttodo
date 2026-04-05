@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'StudentOS',
         short_name: 'StudentOS',
         description: 'The operating system for serious students.',
-        theme_color: '#050505',
-        background_color: '#050505',
+        theme_color: '#0B0C10',
+        background_color: '#0B0C10',
         display: 'standalone',
         icons: [
           {
