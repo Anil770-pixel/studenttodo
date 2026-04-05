@@ -508,3 +508,37 @@ Output ONLY a valid JSON object:
         };
     }
 }
+/**
+ * Parse Swayam syllabus/about text to extract weeks and deadlines.
+ */
+export async function parseSwayamSyllabus(text) {
+    const prompt = `
+    You are the StudentOS AI Course Parser.
+    Extract the number of weeks and assignment deadlines from this Swayam course description/syllabus.
+    
+    Text: "${text}"
+    
+    Reference Semester: Jan-Apr 2026 (Starts approx Jan 19).
+    
+    Rules:
+    1. Identify EXACTLY how many weeks/modules are in the course (e.g., 4, 8, or 12).
+    2. Create ONE assignment object per week.
+    3. Estimate deadlines based on a weekly rhythm (usually Tuesdays) starting from Jan 19, 2026, UNLESS specific dates are mentioned in the text.
+    4. Include "Exam Fee Registration" (Feb 16, 2026) and "Final Exam" (Late April 2026).
+    
+    Output ONLY valid JSON:
+    [
+      { "courseName": "extracted name", "weekNumber": "Assignment Week 1", "lastDate": "2026-01-27", "type": "swayam_assignment" },
+      ...
+    ]
+    `;
+
+    try {
+        const completion = await getGroqCompletion(prompt);
+        const content = completion.choices[0]?.message?.content || "[]";
+        return parseGroqJSON(content);
+    } catch (e) {
+        console.error("Syllabus Parse Error:", e);
+        throw e;
+    }
+}

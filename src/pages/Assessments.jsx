@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Plus, Calendar as CalendarIcon, Clock, CheckCircle, AlertOctagon, MoreVertical } from 'lucide-react';
 import Card from '../components/Card';
 import { db, auth } from '../firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { parseSwayamSyllabus } from '../lib/groq';
+import '../styles/rescue.css';
 
 const Assessments = () => {
     const [assessments, setAssessments] = useState([]);
@@ -17,11 +19,39 @@ const Assessments = () => {
         status: 'pending' // pending, done, missed
     });
 
-    const [importMode, setImportMode] = useState('manual'); // manual, turbo
+    const [importMode, setImportMode] = useState('manual'); // manual, turbo, ai
     const [swayamData, setSwayamData] = useState({
         name: '',
         duration: 8
     });
+    const [syllabusText, setSyllabusText] = useState('');
+    const [isParsing, setIsParsing] = useState(false);
+
+    const handleAISmartPaste = async () => {
+        if (!syllabusText.trim() || !auth.currentUser) return;
+        setIsParsing(true);
+        try {
+            const items = await parseSwayamSyllabus(syllabusText);
+            const batch = writeBatch(db);
+            items.forEach(item => {
+                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
+                batch.set(docRef, {
+                    ...item,
+                    status: 'pending',
+                    createdAt: new Date().toISOString()
+                });
+            });
+            await batch.commit();
+            setIsAddModalOpen(false);
+            setSyllabusText('');
+            alert(`AI Shield Activated! Tracked ${items.length} accurate course milestones.`);
+        } catch (error) {
+            console.error("AI Parse Error:", error);
+            alert("AI could not read that. Try pasting the 'About Course' section from Swayam.");
+        } finally {
+            setIsParsing(false);
+        }
+    };
 
     const handleTurboImport = async () => {
         if (!swayamData.name || !auth.currentUser) return;
@@ -68,10 +98,12 @@ const Assessments = () => {
         });
 
         try {
-            const promises = batchItems.map(item => 
-                addDoc(collection(db, "users", auth.currentUser.uid, "assessments"), item)
-            );
-            await Promise.all(promises);
+            const batch = writeBatch(db);
+            batchItems.forEach(item => {
+                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
+                batch.set(docRef, item);
+            });
+            await batch.commit();
             setIsAddModalOpen(false);
             setSwayamData({ name: '', duration: 8 });
             alert(`Turbo Success! Managed to track ${batchItems.length} course touchpoints.`);
@@ -213,8 +245,28 @@ const Assessments = () => {
                             statusIcon = <AlertOctagon size={16} />;
                             warningText = "Missed";
                         } else {
-                            // Pending logic
-                            if (diffDays < 0) warningText = "Overdue";
+                            // Pending logic & Rescue Strikes
+                            const dateObj = new Date(item.lastDate);
+                            const hoursLeft = (dateObj - today) / (1000 * 60 * 60);
+
+                            if (hoursLeft < 0) warningText = "Overdue";
+                            else if (hoursLeft < 6) {
+                                warningText = "RESCUE MODE: <6H LEFT!";
+                                statusColor = "strike-3";
+                                statusText = "text-red-500 font-black";
+                                statusIcon = <AlertOctagon size={16} className="text-red-500 animate-bounce" />;
+                            }
+                            else if (hoursLeft < 24) {
+                                warningText = "WARNING: STRIKE 2 (24H)";
+                                statusColor = "strike-2";
+                                statusText = "text-red-400";
+                                statusIcon = <Clock size={16} className="text-red-400" />;
+                            }
+                            else if (hoursLeft < 72) {
+                                warningText = "STRIKE 1 (3 Days Remaining)";
+                                statusColor = "strike-1";
+                                statusText = "text-yellow-400";
+                            }
                             else if (diffDays === 0) {
                                 warningText = "Due TODAY";
                                 statusColor = "border-orange-500/50 bg-orange-500/10";
@@ -299,20 +351,27 @@ const Assessments = () => {
                                 <div className="flex p-1 bg-slate-950 rounded-xl mb-6 border border-slate-800">
                                     <button 
                                         onClick={() => setImportMode('manual')}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${importMode === 'manual' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
+                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${importMode === 'manual' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
                                     >
-                                        Manual Entry
+                                        Manual
                                     </button>
                                     <button 
                                         onClick={() => setImportMode('turbo')}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${importMode === 'turbo' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}
+                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${importMode === 'turbo' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
                                     >
-                                        <Clock size={14} /> Turbo SWAYAM
+                                        Turbo
+                                    </button>
+                                    <button 
+                                        onClick={() => setImportMode('ai')}
+                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${importMode === 'ai' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}
+                                    >
+                                        <Shield size={12} /> Smart Paste (AI)
                                     </button>
                                 </div>
 
                                 {importMode === 'manual' ? (
                                     <form onSubmit={handleAddAssessment} className="space-y-4">
+                                        {/* ... manual form unchanged ... */}
                                         <div>
                                             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Course Name</label>
                                             <input 
@@ -362,8 +421,9 @@ const Assessments = () => {
                                             </button>
                                         </div>
                                     </form>
-                                ) : (
+                                ) : importMode === 'turbo' ? (
                                     <div className="space-y-4">
+                                        {/* ... turbo form unchanged ... */}
                                         <div>
                                             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Course Name</label>
                                             <input 
@@ -389,15 +449,6 @@ const Assessments = () => {
                                                 ))}
                                             </div>
                                         </div>
-                                        <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-2">Automagic Setup Details</p>
-                                            <ul className="text-xs text-slate-400 space-y-1.5">
-                                                <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> {swayamData.duration} Weekly Assignments</li>
-                                                <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> Exam Fee Deadline (Feb 16)</li>
-                                                <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> Proctored Exam (April 2026)</li>
-                                                <li className="flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> Priority Rescue Notifications</li>
-                                            </ul>
-                                        </div>
                                         <div className="flex gap-3 justify-end mt-8">
                                             <button 
                                                 type="button" 
@@ -412,6 +463,50 @@ const Assessments = () => {
                                                 className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:grayscale"
                                             >
                                                 Generate Full Schedule
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl">
+                                            <p className="text-xs text-green-400 font-bold flex items-center gap-2">
+                                                <Shield size={14} /> AI Smart Paste (Beta)
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 mt-1 italic">
+                                                Paste your Swayam Course syllabus or "About Course" text. AI will identify the weeks and deadlines automatically.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Paste Syllabus Text</label>
+                                            <textarea 
+                                                autoFocus
+                                                value={syllabusText}
+                                                onChange={e => setSyllabusText(e.target.value)}
+                                                placeholder="e.g. This course is for 4 weeks. Assignment 1 is due on Jan 27..."
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none min-h-[150px] text-xs leading-relaxed"
+                                            />
+                                        </div>
+                                        <div className="flex gap-3 justify-end mt-4">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setIsAddModalOpen(false)}
+                                                className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                disabled={!syllabusText.trim() || isParsing}
+                                                onClick={handleAISmartPaste}
+                                                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                                            >
+                                                {isParsing ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                                        Analyzing...
+                                                    </>
+                                                ) : (
+                                                    'Activate AI Shield'
+                                                )}
                                             </button>
                                         </div>
                                     </div>

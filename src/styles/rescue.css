@@ -1,0 +1,45 @@
+/* 3-Strike Rescue System Animations */
+
+@keyframes yellow-glow {
+  0% { box-shadow: 0 0 5px rgba(234, 179, 8, 0.4); border-color: rgba(234, 179, 8, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.6); border-color: rgba(234, 179, 8, 0.6); }
+  100% { box-shadow: 0 0 5px rgba(234, 179, 8, 0.4); border-color: rgba(234, 179, 8, 0.4); }
+}
+
+@keyframes red-glow {
+  0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.4); border-color: rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); border-color: rgba(239, 68, 68, 0.7); }
+  100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.4); border-color: rgba(239, 68, 68, 0.4); }
+}
+
+@keyframes urgent-flash {
+  0% { background-color: rgba(239, 68, 68, 0.1); border-color: #ef4444; box-shadow: 0 0 10px #ef4444; }
+  25% { background-color: rgba(239, 68, 68, 0.3); border-color: #f87171; box-shadow: 0 0 30px #f87171; }
+  50% { background-color: rgba(239, 68, 68, 0.1); border-color: #ef4444; box-shadow: 0 0 10px #ef4444; }
+  75% { background-color: rgba(239, 68, 68, 0.3); border-color: #f87171; box-shadow: 0 0 30px #f87171; }
+  100% { background-color: rgba(239, 68, 68, 0.1); border-color: #ef4444; box-shadow: 0 0 10px #ef4444; }
+}
+
+.strike-1 {
+  animation: yellow-glow 3s infinite ease-in-out;
+  border-width: 2px !important;
+}
+
+.strike-2 {
+  animation: red-glow 2s infinite ease-in-out;
+  border-width: 2px !important;
+}
+
+.strike-3 {
+  animation: urgent-flash 1s infinite ease-in-out;
+  border-width: 3px !important;
+}
+
+.rescue-text-flash {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

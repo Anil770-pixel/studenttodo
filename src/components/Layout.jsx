@@ -1,8 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import RescueModal from './RescueModal';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const Layout = () => {
+    const { user } = useAuth();
+    const [rescueTask, setRescueTask] = useState(null);
+
+    useEffect(() => {
+        // Expose a global way to open the rescue modal (Strike 3)
+        window.openRescueModal = (task) => {
+            setRescueTask(task);
+        };
+        return () => { delete window.openRescueModal; };
+    }, []);
+
+    const handleAcceptRescuePlan = async (plan) => {
+        if (!user || !plan.rescue_plan) return;
+        
+        try {
+            // Updated tasks with new dates from AI
+            for (const item of plan.rescue_plan) {
+                const collectionName = item.type === 'assessment' ? "assessments" : "tasks";
+                const docRef = doc(db, "users", user.uid, collectionName, item.id);
+                await updateDoc(docRef, {
+                    lastDate: item.new_date, // assessments use lastDate
+                    date: item.new_date      // tasks use date
+                });
+            }
+            setRescueTask(null);
+            alert("Rescue Plan Synchronized. Check your new timeline!");
+        } catch (err) {
+            console.error("Rescue plan sync error:", err);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-navy-900 text-white relative overflow-x-hidden selection:bg-neon-cyan/30">
             {/* Ambient Background Glow */}
@@ -19,6 +54,15 @@ const Layout = () => {
                     <Outlet />
                 </div>
             </main>
+
+            {/* Global Rescue Anchor */}
+            {rescueTask && (
+                <RescueModal 
+                    taskToRescue={rescueTask.data || rescueTask} 
+                    onClose={() => setRescueTask(null)}
+                    onAcceptPlan={handleAcceptRescuePlan}
+                />
+            )}
         </div>
     );
 };

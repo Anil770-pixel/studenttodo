@@ -74,19 +74,40 @@ export const ReminderProvider = ({ children }) => {
             let priority = 0;
             let message = "";
             let isUrgent = false;
+            let strikeLevel = 0; // 0, 1, 2, 3
 
             const itemDate = item.date ? new Date(item.date) : now;
-            const isOverdue = itemDate < new Date(now.toDateString());
+            const diffMs = itemDate - now;
+            const diffHours = diffMs / (1000 * 60 * 60);
+
+            const isOverdue = diffHours < 0;
             const isToday = itemDate.toDateString() === now.toDateString();
 
             if (isOverdue) {
-                priority += 50;
-                message = `Overdue: ${item.title}`;
+                priority += 60; // Max priority for overdue
+                message = `CRITICAL: ${item.title} OVERDUE`;
                 isUrgent = true;
-            } else if (isToday) {
+                strikeLevel = 3; 
+            } else if (diffHours < 6) {
+                // Strike 3: Rescue Phase
+                priority += 50;
+                message = `STRIKE 3: ${item.title} DUE IN <6 HOURS!`;
+                isUrgent = true;
+                strikeLevel = 3;
+            } else if (diffHours < 24) {
+                // Strike 2: Warning Phase
+                priority += 40;
+                message = `STRIKE 2: ${item.title} DUE TOMORROW`;
+                isUrgent = true;
+                strikeLevel = 2;
+            } else if (diffHours < 72) {
+                // Strike 1: Nudge Phase
                 priority += 30;
+                message = `STRIKE 1: ${item.title} approaching (3 Days)`;
+                strikeLevel = 1;
+            } else if (isToday) {
+                priority += 20;
                 message = `Due Today: ${item.title}`;
-                isUrgent = true; // Trigger PWA Push for same-day deadlines
             } else {
                 priority += 10;
                 message = `Upcoming: ${item.title}`;
@@ -101,6 +122,7 @@ export const ReminderProvider = ({ children }) => {
                 message,
                 priority,
                 isUrgent,
+                strikeLevel,
                 type: item.type,
                 data: item
             };
@@ -116,7 +138,8 @@ export const ReminderProvider = ({ children }) => {
             const lastNotifiedAt = localStorage.getItem(CACHE_KEY);
             const nowMs = Date.now();
             if (!lastNotifiedAt || nowMs - parseInt(lastNotifiedAt, 10) > 4 * 60 * 60 * 1000) {
-                triggerLocalPush('StudentOS Priority', `You have ${newUrgentCount} urgent missions active.`);
+                const mostUrgent = reminders.find(r => r.isUrgent);
+                triggerLocalPush('StudentOS Priority Rescue', mostUrgent?.message || `You have ${newUrgentCount} urgent missions active.`);
                 localStorage.setItem(CACHE_KEY, nowMs.toString());
             }
         }

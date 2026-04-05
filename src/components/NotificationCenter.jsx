@@ -78,32 +78,62 @@ const NotificationCenter = ({ isOpen, onClose }) => {
                                     <p className="text-slate-500 text-sm">No intelligent reminders right now. Enjoy the focus.</p>
                                 </div>
                             ) : (
-                                activeReminders.map(rem => (
-                                    <motion.div 
-                                        layout
-                                        key={rem.id} 
-                                        className={`p-4 rounded-2xl border ${rem.isUrgent ? 'bg-red-500/10 border-red-500/20' : 'bg-slate-800/80 border-slate-700'}`}
-                                    >
-                                        <div className="flex gap-3">
-                                            {rem.isUrgent ? <AlertTriangle className="text-red-400 shrink-0" size={18} /> : <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0" />}
-                                            <div className="flex-1">
-                                                <p className={`text-xs font-bold uppercase tracking-wider mb-1 flex items-center justify-between ${rem.isUrgent ? 'text-red-400' : 'text-blue-400'}`}>
-                                                    {rem.isUrgent ? 'Priority Rescue' : 'Upcoming Action'}
-                                                </p>
-                                                <h4 className="text-white font-medium text-sm leading-snug">{rem.title}</h4>
+                                activeReminders.map(rem => {
+                                    const strikeClass = rem.strikeLevel === 1 ? 'strike-1' : (rem.strikeLevel === 2 ? 'strike-2' : (rem.strikeLevel === 3 ? 'strike-3' : ''));
+                                    
+                                    return (
+                                        <motion.div 
+                                            layout
+                                            key={rem.id} 
+                                            className={`p-4 rounded-2xl border transition-all ${strikeClass} ${rem.isUrgent ? 'bg-red-900/20' : 'bg-slate-800/80 border-slate-700'}`}
+                                        >
+                                            <div className="flex gap-3">
+                                                {rem.strikeLevel === 3 ? (
+                                                    <AlertTriangle className="text-red-500 shrink-0 rescue-text-flash" size={24} />
+                                                ) : rem.isUrgent ? (
+                                                    <AlertTriangle className="text-red-400 shrink-0" size={18} />
+                                                ) : (
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0" />
+                                                )}
                                                 
-                                                <div className="flex gap-2 mt-4">
-                                                    <button onClick={() => handleMarkDone(rem)} className="flex-1 py-1.5 px-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-bold rounded-lg transition-colors border border-emerald-500/20 flex justify-center items-center gap-1">
-                                                        <Check size={14} /> Done
-                                                    </button>
-                                                    <button onClick={() => handleSnooze(rem.id)} className="flex-1 py-1.5 px-3 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded-lg transition-colors flex justify-center items-center gap-1">
-                                                        <Clock size={14} /> Tomorrow
-                                                    </button>
+                                                <div className="flex-1">
+                                                    <p className={`text-[10px] font-black uppercase tracking-widest mb-1 flex items-center justify-between ${rem.strikeLevel === 3 ? 'text-red-500' : (rem.strikeLevel === 1 ? 'text-yellow-400' : (rem.isUrgent ? 'text-red-400' : 'text-blue-400'))}`}>
+                                                        {rem.strikeLevel === 3 ? '🚨 CRITICAL RESCUE 🚨' : (rem.strikeLevel === 2 ? '⚠️ STRIKE 2 WARNING' : (rem.strikeLevel === 1 ? '🔔 STRIKE 1 NUDGE' : 'Upcoming Action'))}
+                                                    </p>
+                                                    <h4 className={`text-white font-bold text-sm leading-snug ${rem.strikeLevel === 3 ? 'text-base' : ''}`}>
+                                                        {rem.title}
+                                                    </h4>
+                                                    
+                                                    {rem.strikeLevel === 3 && (
+                                                        <p className="text-[10px] text-red-300/80 mt-1 italic font-medium">
+                                                            Don't panic. AI breakdown ready below.
+                                                        </p>
+                                                    )}
+
+                                                    <div className="flex gap-2 mt-4">
+                                                        {rem.strikeLevel === 3 ? (
+                                                            <button 
+                                                                onClick={() => window.openRescueModal?.(rem)}
+                                                                className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-500 text-white text-[10px] font-black rounded-lg transition-all border border-red-400 shadow-lg shadow-red-500/30 flex justify-center items-center gap-2 uppercase tracking-tighter"
+                                                            >
+                                                                <Shield size={14} /> Rescue Me (AI)
+                                                            </button>
+                                                        ) : (
+                                                            <>
+                                                                <button onClick={() => handleMarkDone(rem)} className="flex-1 py-1.5 px-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-bold rounded-lg transition-colors border border-emerald-500/20 flex justify-center items-center gap-1">
+                                                                    <Check size={14} /> Done
+                                                                </button>
+                                                                <button onClick={() => handleSnooze(rem.id)} className="flex-1 py-1.5 px-3 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded-lg transition-colors flex justify-center items-center gap-1">
+                                                                    <Clock size={14} /> Tomorrow
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </motion.div>
-                                ))
+                                        </motion.div>
+                                    );
+                                })
                             )}
                         </div>
                     </motion.div>
