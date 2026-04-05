@@ -4,7 +4,7 @@ import { Shield, Plus, Calendar as CalendarIcon, Clock, CheckCircle, AlertOctago
 import Card from '../components/Card';
 import { db, auth } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
-import { parseSwayamSyllabus, fetchSwayamHTML } from '../lib/groq';
+import { parseSwayamSyllabus, estimateCourseDuration } from '../lib/groq';
 import '../styles/rescue.css';
 
 const Assessments = () => {
@@ -14,129 +14,121 @@ const Assessments = () => {
 
     const [formData, setFormData] = useState({
         courseName: '',
-        weekNumber: '',
-        lastDate: '',
+        startDate: new Date().toISOString().split('T')[0],
         status: 'pending' // pending, done, missed
     });
 
-    const [importMode, setImportMode] = useState('ai'); // ai, manual, turbo
-    const [swayamData, setSwayamData] = useState({
-        name: '',
-        duration: 8
-    });
+    const [importMode, setImportMode] = useState('link'); // link, ai, manual
     const [syllabusText, setSyllabusText] = useState('');
     const [courseUrl, setCourseUrl] = useState('');
     const [isParsing, setIsParsing] = useState(false);
 
-    const handleAISmartPaste = async () => {
-        if (!syllabusText.trim() || !auth.currentUser) return;
+    // Unified Generator: Mathematical precision for 7-day spacing
+    const saveShieldSchedule = async (courseName, weeks, startDateStr) => {
+        const startDate = new Date(startDateStr);
+        const batch = writeBatch(db);
+
+        // 1. Weekly Assignments
+        for (let i = 1; i <= weeks; i++) {
+            const dueDate = new Date(startDate);
+            dueDate.setDate(startDate.getDate() + (i * 7));
+
+            const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
+            batch.set(docRef, {
+                courseName,
+                weekNumber: `Week ${i} Assignment`,
+                lastDate: dueDate.toISOString().split('T')[0],
+                status: 'pending',
+                type: 'swayam_assignment',
+                reminderSet: true, // Flag for PWA notifications
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        // 2. Fixed Milestones (Fee & Exam)
+        const feeDate = new Date(startDate);
+        feeDate.setDate(startDate.getDate() + 21);
+        const examDate = new Date(startDate);
+        examDate.setDate(startDate.getDate() + (weeks * 7) + 14);
+
+        const milestones = [
+            { title: "Exam Fee Registration", date: feeDate, type: 'swayam_fee' },
+            { title: "Final Proctored Exam", date: examDate, type: 'swayam_exam' }
+        ];
+
+        milestones.forEach(m => {
+            const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
+            batch.set(docRef, {
+                courseName,
+                weekNumber: m.title,
+                lastDate: m.date.toISOString().split('T')[0],
+                status: 'pending',
+                type: m.type,
+                reminderSet: true,
+                createdAt: new Date().toISOString()
+            });
+        });
+
+        await batch.commit();
+    };
+
+    const handleAISmartLink = async () => {
+        if (!courseUrl.trim() || !auth.currentUser) return;
         setIsParsing(true);
         try {
-            // 1. Hybrid Method: AI only extracts core parameters
-            const data = await parseSwayamSyllabus(syllabusText);
+            // PRO METHOD: Hit our Vercel Serverless Function to bypass CORS
+            const response = await fetch(`/api/scrape-course?url=${encodeURIComponent(courseUrl)}`);
+            if (!response.ok) throw new Error("Scraper failed to read the link");
+            const data = await response.json();
             
-            const weeks = data.totalWeeks || 4; // Fallback to 4
-            const startDate = new Date(data.startDate || new Date());
-            const courseName = data.courseName || "Unknown Course";
-
-            const batch = writeBatch(db);
-            const generatedAssignments = [];
-
-            // 2. Deterministic Loop: JavaScript handles the math (100% Reliable)
-            for (let i = 1; i <= weeks; i++) {
-                const dueDate = new Date(startDate);
-                dueDate.setDate(startDate.getDate() + (i * 7)); // Add 7 days per week
-
-                const assignment = {
-                    courseName: courseName,
-                    weekNumber: `Week ${i} Assignment`,
-                    lastDate: dueDate.toISOString().split('T')[0],
-                    status: 'pending',
-                    type: 'swayam_assessment',
-                    createdAt: new Date().toISOString()
-                };
-                
-                generatedAssignments.push(assignment);
-                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
-                batch.set(docRef, assignment);
-            }
-
-            // 3. Add Exam Milestones (Standard)
-            const feeDate = new Date(startDate);
-            feeDate.setDate(startDate.getDate() + 21); // ~3 weeks in
+            await saveShieldSchedule(data.courseName, data.totalWeeks, data.startDate);
             
-            const examDate = new Date(startDate);
-            examDate.setDate(startDate.getDate() + (weeks * 7) + 14); // ~2 weeks after last assignment
-
-            const milestones = [
-                { title: "Exam Fee Registration", date: feeDate, type: 'swayam_fee' },
-                { title: "Final Proctored Exam", date: examDate, type: 'swayam_exam' }
-            ];
-
-            milestones.forEach(m => {
-                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
-                batch.set(docRef, {
-                    courseName: courseName,
-                    weekNumber: m.title,
-                    lastDate: m.date.toISOString().split('T')[0],
-                    status: 'pending',
-                    type: m.type,
-                    createdAt: new Date().toISOString()
-                });
-            });
-            
-            await batch.commit();
             setIsAddModalOpen(false);
-            setSyllabusText('');
-            alert(`AI Hybrid Shield Activated! Generated ${weeks} weeks for ${courseName}.`);
+            setCourseUrl('');
+            alert(`Smart Link Success! AI detected ${data.totalWeeks} weeks for ${data.courseName}.`);
         } catch (error) {
-            console.error("Hybrid Parse Error:", error);
-            alert("AI could not extract parameters. Try copying the 'Course Summary' section again.");
+            console.error("Link Error:", error);
+            alert("Vercel Scraper was blocked by Swayam or the link is invalid. Try the 'Smart Paste' tab!");
         } finally {
             setIsParsing(false);
         }
     };
 
-    // Nuked: handleAISmartLink disabled due to CORS/Proxy instability.
-
-    const handleTurboImport = async () => {
-        if (!swayamData.name || !auth.currentUser) return;
-        
-        // Nuked: No more dummy weekly loops.
-        const batchItems = [];
-
-        // Only generate the absolute fixed milestones if user wants "Turbo"
-        batchItems.push({
-            courseName: swayamData.name,
-            weekNumber: "Exam Fee Registration",
-            lastDate: "2026-02-16",
-            status: 'pending',
-            type: 'swayam_fee',
-            createdAt: new Date().toISOString()
-        });
-
-        batchItems.push({
-            courseName: swayamData.name,
-            weekNumber: "Proctored Final Exam",
-            lastDate: swayamData.duration === 12 ? "2026-04-25" : "2026-03-29",
-            status: 'pending',
-            type: 'swayam_exam',
-            createdAt: new Date().toISOString()
-        });
-
+    const handleAISmartPaste = async () => {
+        if (!syllabusText.trim() || !auth.currentUser) return;
+        setIsParsing(true);
         try {
-            const batch = writeBatch(db);
-            batchItems.forEach(item => {
-                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
-                batch.set(docRef, item);
-            });
-            await batch.commit();
+            const data = await parseSwayamSyllabus(syllabusText);
+            await saveShieldSchedule(data.courseName, data.totalWeeks, data.startDate);
+            
             setIsAddModalOpen(false);
-            setSwayamData({ name: '', duration: 8 });
-            alert(`Turbo Success! Managed to track ${batchItems.length} course touchpoints.`);
+            setSyllabusText('');
+            alert(`Smart Paste Success! Generated ${data.totalWeeks} weeks of milestones.`);
         } catch (error) {
-            console.error("Turbo Import Error:", error);
-            alert("Failed to turbo import. Connection issue?");
+            console.error("Paste Error:", error);
+            alert("AI could not extract parameters from that text. Try copying the 'Course Summary' section again.");
+        } finally {
+            setIsParsing(false);
+        }
+    };
+
+    const handleAIGeneratedManual = async (e) => {
+        if (e) e.preventDefault();
+        if (!formData.courseName || !auth.currentUser) return;
+        
+        setIsParsing(true);
+        try {
+            const analysis = await estimateCourseDuration(formData.courseName);
+            await saveShieldSchedule(formData.courseName, analysis.estimatedWeeks, formData.startDate);
+            
+            setIsAddModalOpen(false);
+            setFormData({ courseName: '', startDate: new Date().toISOString().split('T')[0], status: 'pending' });
+            alert(`AI Manual Entry: Guided ${analysis.estimatedWeeks} weeks for ${formData.courseName}.`);
+        } catch (error) {
+            console.error("Manual AI Error:", error);
+            alert("Failed to generate manual schedule.");
+        } finally {
+            setIsParsing(false);
         }
     };
 
@@ -382,111 +374,65 @@ const Assessments = () => {
 
                                 <div className="flex p-1 bg-slate-950 rounded-xl mb-6 border border-slate-800">
                                     <button 
-                                        onClick={() => setImportMode('ai')}
-                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${importMode === 'ai' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}
+                                        onClick={() => setImportMode('link')}
+                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${importMode === 'link' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}
                                     >
-                                        <Shield size={12} /> AI Smart Paste
+                                        <Shield size={12} /> Smart Link
+                                    </button>
+                                    <button 
+                                        onClick={() => setImportMode('ai')}
+                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${importMode === 'ai' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
+                                    >
+                                        Smart Paste
                                     </button>
                                     <button 
                                         onClick={() => setImportMode('manual')}
                                         className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${importMode === 'manual' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
                                     >
-                                        Manual
-                                    </button>
-                                    <button 
-                                        onClick={() => setImportMode('turbo')}
-                                        className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${importMode === 'turbo' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
-                                    >
-                                        Turbo
+                                        AI Manual
                                     </button>
                                 </div>
 
-                                {importMode === 'manual' ? (
-                                    <form onSubmit={handleAddAssessment} className="space-y-4">
+                                {importMode === 'link' ? (
+                                    <div className="space-y-6">
+                                        <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl">
+                                            <p className="text-xs text-green-400 font-bold flex items-center gap-2">
+                                                <Shield size={14} /> Vercel Smart Scraper (Ultra)
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed italic">
+                                                Paste your Swayam course URL. AI will bypass CORS, visit the link, and auto-build your entire schedule.
+                                            </p>
+                                        </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Course Name</label>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2 tracking-wider">Course URL</label>
                                             <input 
-                                                required autoFocus
-                                                type="text" 
-                                                placeholder="e.g. SWAYAM: Joy of Computing"
-                                                value={formData.courseName}
-                                                onChange={e => setFormData({...formData, courseName: e.target.value})}
-                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none"
+                                                autoFocus
+                                                type="url" 
+                                                placeholder="https://onlinecourses.swayam2.ac.in/..."
+                                                value={courseUrl}
+                                                onChange={e => setCourseUrl(e.target.value)}
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-white focus:border-green-500 transition-all outline-none"
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Week / Module</label>
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="e.g. Week 4"
-                                                    value={formData.weekNumber}
-                                                    onChange={e => setFormData({...formData, weekNumber: e.target.value})}
-                                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Last Date</label>
-                                                <input 
-                                                    required
-                                                    type="date" 
-                                                    value={formData.lastDate}
-                                                    onChange={e => setFormData({...formData, lastDate: e.target.value})}
-                                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none [color-scheme:dark]"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-3 justify-end mt-8">
-                                            <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors">Cancel</button>
-                                            <button type="submit" className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all font-inter">Save to Shield</button>
-                                        </div>
-                                    </form>
-                                ) : importMode === 'turbo' ? (
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Course Name</label>
-                                            <input 
-                                                required autoFocus
-                                                type="text" 
-                                                placeholder="e.g. Data structures using Python"
-                                                value={swayamData.name}
-                                                onChange={e => setSwayamData({...swayamData, name: e.target.value})}
-                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Select Duration</label>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                {[4, 8, 12].map(d => (
-                                                    <button 
-                                                        key={d}
-                                                        onClick={() => setSwayamData({...swayamData, duration: d})}
-                                                        className={`py-3 rounded-xl border font-bold text-sm transition-all ${swayamData.duration === d ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'}`}
-                                                    >
-                                                        {d} Weeks
-                                                    </button>
-                                                ))}
-                                            </div>
                                         </div>
                                         <div className="flex gap-3 justify-end mt-8">
                                             <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors">Cancel</button>
                                             <button 
-                                                disabled={!swayamData.name}
-                                                onClick={handleTurboImport}
-                                                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg active:scale-95 disabled:opacity-50"
+                                                disabled={!courseUrl.trim() || isParsing}
+                                                onClick={handleAISmartLink}
+                                                className="px-8 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50"
                                             >
-                                                Generate Full Schedule
+                                                {isParsing ? 'Scraping Link...' : 'Analyze & Shield'}
                                             </button>
                                         </div>
                                     </div>
-                                ) : (
+                                ) : importMode === 'ai' ? (
                                     <div className="space-y-4">
                                         <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl">
                                             <p className="text-xs text-green-400 font-bold flex items-center gap-2">
                                                 <Shield size={14} /> AI Smart Paste (Elite)
                                             </p>
                                             <p className="text-[10px] text-slate-400 mt-1 italic">
-                                                For Swayam courses, copy and paste the "About Course" or "Syllabus" text here. AI will extract exact milestones.
+                                                For Swayam courses, copy and paste the "About Course" or "Syllabus" text here.
                                             </p>
                                         </div>
                                         <div>
@@ -499,29 +445,58 @@ const Assessments = () => {
                                             />
                                         </div>
                                         <div className="flex gap-3 justify-end mt-4">
-                                            <button 
-                                                type="button" 
-                                                onClick={() => setIsAddModalOpen(false)}
-                                                className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
+                                            <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors">Cancel</button>
                                             <button 
                                                 disabled={!syllabusText.trim() || isParsing}
                                                 onClick={handleAISmartPaste}
                                                 className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
                                             >
-                                                {isParsing ? (
-                                                    <>
-                                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                                        Analyzing...
-                                                    </>
-                                                ) : (
-                                                    'Shield This Course'
-                                                )}
+                                                {isParsing ? 'Analyzing...' : 'Shield This Course'}
                                             </button>
                                         </div>
                                     </div>
+                                ) : (
+                                    <form onSubmit={handleAIGeneratedManual} className="space-y-6">
+                                        <div className="p-4 bg-slate-900 border border-white/5 rounded-2xl">
+                                            <p className="text-xs text-slate-300 font-bold flex items-center gap-2 uppercase tracking-widest">
+                                                <Shield size={14} className="text-slate-500" /> AI-Augmented Manual
+                                            </p>
+                                            <p className="text-[10px] text-slate-500 mt-1 italic">
+                                                Just enter the name and start date. AI will estimate the duration.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Course Name</label>
+                                            <input 
+                                                required autoFocus
+                                                type="text" 
+                                                placeholder="e.g. Data structures using Python"
+                                                value={formData.courseName}
+                                                onChange={e => setFormData({...formData, courseName: e.target.value})}
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Academic Start Date</label>
+                                            <input 
+                                                required
+                                                type="date" 
+                                                value={formData.startDate}
+                                                onChange={e => setFormData({...formData, startDate: e.target.value})}
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-green-500 outline-none [color-scheme:dark]"
+                                            />
+                                        </div>
+                                        <div className="flex gap-3 justify-end mt-8">
+                                            <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-5 py-2.5 text-slate-400 font-bold hover:text-white transition-colors">Cancel</button>
+                                            <button 
+                                                disabled={!formData.courseName || isParsing}
+                                                type="submit" 
+                                                className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all font-inter flex items-center gap-2"
+                                            >
+                                                {isParsing ? 'Estimating...' : 'AI Generate Schedule'}
+                                            </button>
+                                        </div>
+                                    </form>
                                 )}
                             </div>
                         </motion.div>

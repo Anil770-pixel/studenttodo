@@ -595,3 +595,37 @@ export async function parseSwayamSyllabus(text) {
         throw e;
     }
 }
+
+/**
+ * AI-Augmented Manual: Estimates course duration based on title.
+ */
+export async function estimateCourseDuration(courseName) {
+    const prompt = `
+    The student is taking a course named '${courseName}'. 
+    Estimate the standard duration in weeks for a typical online course on this topic (usually 4, 8, or 12). 
+    Return ONLY a JSON object: { "estimatedWeeks": number, "producer": "Swayam/NPTEL or General" }.
+    `;
+
+    try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.1-70b-versatile",
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.1,
+                response_format: { type: "json_object" }
+            })
+        });
+
+        if (!response.ok) throw new Error("Estimation failed");
+        const data = await response.json();
+        return JSON.parse(data.choices[0].message.content);
+    } catch (e) {
+        console.error("Estimation Error:", e);
+        return { estimatedWeeks: 8, producer: "General" }; // Safe default
+    }
+}
