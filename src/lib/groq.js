@@ -509,26 +509,56 @@ Output ONLY a valid JSON object:
     }
 }
 /**
+ * Fetches course HTML via allorigins.win proxy to bypass CORS.
+ */
+export async function fetchSwayamHTML(url) {
+    try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error("Proxy fetch failed");
+        const data = await response.json();
+        return data.contents; // The raw HTML
+    } catch (error) {
+        console.error("Swayam Fetch Error:", error);
+        throw error;
+    }
+}
+
+/**
  * Parse Swayam syllabus/about text to extract weeks and deadlines.
  */
-export async function parseSwayamSyllabus(text) {
+export async function parseSwayamSyllabus(text, isHTML = false) {
+    let cleanText = text;
+    
+    if (isHTML) {
+        // Basic HTML cleanup to reduce token usage
+        cleanText = text
+            .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gim, "")
+            .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gim, "")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .substring(0, 8000); // Token limit safety
+    }
+
     const prompt = `
     You are the StudentOS AI Course Parser.
-    Extract the number of weeks and assignment deadlines from this Swayam course description/syllabus.
+    Extract the EXACT number of weeks and assignment topics/deadlines from this Swayam course description.
     
-    Text: "${text}"
+    Course Data: "${cleanText}"
     
     Reference Semester: Jan-Apr 2026 (Starts approx Jan 19).
     
     Rules:
     1. Identify EXACTLY how many weeks/modules are in the course (e.g., 4, 8, or 12).
     2. Create ONE assignment object per week.
-    3. Estimate deadlines based on a weekly rhythm (usually Tuesdays) starting from Jan 19, 2026, UNLESS specific dates are mentioned in the text.
-    4. Include "Exam Fee Registration" (Feb 16, 2026) and "Final Exam" (Late April 2026).
+    3. Topic titles should be specific (e.g., "Solar Radiation & Angles").
+    4. Estimate deadlines based on a weekly rhythm (usually Tuesdays) starting from Jan 19, 2026, UNLESS specific dates are mentioned.
+    5. Include "Exam Fee Registration" (Feb 16, 2026) and "Final Exam" (Late April 2026).
     
     Output ONLY valid JSON:
     [
-      { "courseName": "extracted name", "weekNumber": "Assignment Week 1", "lastDate": "2026-01-27", "type": "swayam_assignment" },
+      { "courseName": "extracted name", "weekNumber": "Assignment Week 1", "lastDate": "2026-01-27", "type": "swayam_assessment", "topic": "Topic Name" },
       ...
     ]
     `;
