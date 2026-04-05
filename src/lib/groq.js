@@ -537,59 +537,65 @@ export async function fetchSwayamHTML(url) {
 }
 
 /**
- * NEW: Robust AI Syllabus Parser (Strict JSON only)
+ * FINAL BOSS FIX: Robust AI Syllabus Parser (Time-Aware + Bulletproof Sanitizer)
  */
 export async function parseSwayamSyllabus(text) {
     if (!text || text.length < 50) {
         throw new Error("Text too short. Please paste the full syllabus or Course Layout.");
     }
 
-    const cleanText = text
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .substring(0, 7000);
-
+    const today = new Date().toISOString();
+    
+    // Directive 3: Inject 'Time Awareness'
     const systemPrompt = `
     You are an elite academic extractor for StudentOS. 
-    Your ONLY task is to read the provided course syllabus and return a valid JSON array of assignments.
+    The current date is ${today}.
+    
+    TASK: Read the provided syllabus text. Determine the total number of weeks. Generate an array of JSON objects.
     
     RULES:
-    1. Output MUST be ONLY a raw JSON array. No markdown, no "Here is your JSON", no conversational text.
-    2. Extract the exact course name.
+    1. Output MUST be ONLY a raw JSON array.
+    2. Extract exact course name.
     3. Identify each week/module. Use "Week 01", "Week 02", etc.
-    4. Calculate the 'lastDate' (ISO format YYYY-MM-DD). If no specific dates are given, use Jan 19, 2026 as the semester start and space assignments by 7 days (usually Tuesday).
-    5. Always include "Swayam Exam Fee" (Feb 16, 2026) and "Final Proctored Exam" (Late April 2026).
-    6. Object format: { "courseName": string, "weekNumber": string, "topic": string, "lastDate": string, "type": "swayam_assessment" }
+    4. Space the 'dueDate' for each week EXACTLY 7 days apart, starting from 7 days AFTER today's date (${new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().split('T')[0]}).
+    5. Schema Enforcement: [{"courseName": "Name", "moduleName": "Week 1", "dueDate": "YYYY-MM-DD"}]
+    6. Always include "Swayam Exam Fee" and "Final Proctored Exam" at appropriate future dates.
     `;
 
-    const userPrompt = `Course Content: "${cleanText}"`;
+    const userPrompt = `Course Content: "${text.substring(0, 7000)}"`;
 
     try {
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const response = await fetch(GROQ_API_URL, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+                "Authorization": `Bearer ${GROQ_API_KEY}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "llama-3.1-70b-versatile",
+                model: COMP_MODEL,
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userPrompt }
                 ],
-                temperature: 0.1, // Low temp for super-strict JSON
-                response_format: { type: "json_object" } // Groq supports this for better JSON results
+                temperature: 0.1,
+                response_format: { type: "json_object" }
             })
         });
 
         if (!response.ok) throw new Error("Groq API error");
         const data = await response.json();
-        const content = data.choices[0]?.message?.content || "[]";
+        let rawResponse = data.choices[0]?.message?.content || "[]";
         
-        // Handle cases where Groq might wrap the array in a "data" or "assignments" key
-        const parsed = JSON.parse(content);
-        return Array.isArray(parsed) ? parsed : (parsed.assignments || parsed.data || []);
+        // Directive 4: Bulletproof JSON Sanitizer
+        // Strip markdown backticks if AI includes them
+        rawResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+        // Extract only the array portion
+        const arrayMatch = rawResponse.match(/\[[\s\S]*\]/);
+        if (!arrayMatch) throw new Error("No JSON array found in AI response");
+
+        const finalData = JSON.parse(arrayMatch[0]);
+        return Array.isArray(finalData) ? finalData : (finalData.assignments || finalData.data || []);
     } catch (e) {
         console.error("Master Parser Error:", e);
         throw e;

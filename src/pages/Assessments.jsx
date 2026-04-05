@@ -32,71 +32,41 @@ const Assessments = () => {
         if (!syllabusText.trim() || !auth.currentUser) return;
         setIsParsing(true);
         try {
-            const items = await parseSwayamSyllabus(syllabusText);
-            if (!items || items.length === 0) {
+            const parsedItems = await parseSwayamSyllabus(syllabusText);
+            
+            if (!parsedItems || parsedItems.length === 0) {
                 alert("AI couldn't find any assignments in that text. Try pasting the 'Course Layout' section.");
                 return;
             }
+
             const batch = writeBatch(db);
-            items.forEach(item => {
+            parsedItems.forEach(item => {
                 const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
+                
+                // Blueprint Schema Enforcement & Mapping
                 batch.set(docRef, {
-                    ...item,
+                    courseName: item.courseName || "Unknown Course",
+                    weekNumber: item.moduleName || "General Milestone", // Map moduleName to weekNumber
+                    lastDate: item.dueDate || new Date().toISOString().split('T')[0], // Map dueDate to lastDate
                     status: 'pending',
+                    type: 'swayam_assessment',
                     createdAt: new Date().toISOString()
                 });
             });
+            
             await batch.commit();
             setIsAddModalOpen(false);
             setSyllabusText('');
-            alert(`AI Shield Activated! Tracked ${items.length} accurate course milestones.`);
+            alert(`AI Shield Activated! Tracked ${parsedItems.length} accurate course milestones.`);
         } catch (error) {
             console.error("AI Parse Error:", error);
-            alert("AI could not read that. Try pasting the 'About Course' section from Swayam.");
+            alert("AI Parse Error: Ensure you pasted the syllabus text correctly. Try copying from 'About Course' again.");
         } finally {
             setIsParsing(false);
         }
     };
 
-    const handleAISmartLink = async () => {
-        if (!courseUrl.trim() || !auth.currentUser) return;
-        
-        // Validation for full Swayam preview links
-        if (!courseUrl.includes("swayam") || !courseUrl.includes("/preview/")) {
-            alert("⚠️ INCOMPLETE LINK: Please paste the full Course Preview URL.\n\nExample: https://onlinecourses.swayam2.ac.in/e-learning/preview/ntr26_ed109");
-            return;
-        }
-        
-        setIsParsing(true);
-        try {
-            const html = await fetchSwayamHTML(courseUrl);
-            const items = await parseSwayamSyllabus(html, true); // true for isHTML
-            
-            if (!items || items.length === 0) {
-                alert("AI Error: Found the page, but couldn't see the syllabus layout. Try the 'Paste' tab instead.");
-                return;
-            }
-
-            const batch = writeBatch(db);
-            items.forEach(item => {
-                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
-                batch.set(docRef, {
-                    ...item,
-                    status: 'pending',
-                    createdAt: new Date().toISOString()
-                });
-            });
-            await batch.commit();
-            setIsAddModalOpen(false);
-            setCourseUrl('');
-            alert(`AI Smart Link Success! Syncing ${items.length} course assignments.`);
-        } catch (error) {
-            console.error("Link Analysis Error:", error);
-            alert("⚠️ CONNECTION ERROR: The Swayam portal blocked the request or the link is broken. \n\nFIX: Try copying the 'Course Layout' text and using the 'Paste' tab instead.");
-        } finally {
-            setIsParsing(false);
-        }
-    };
+    // Nuked: handleAISmartLink disabled due to CORS/Proxy instability.
 
     const handleTurboImport = async () => {
         if (!swayamData.name || !auth.currentUser) return;
