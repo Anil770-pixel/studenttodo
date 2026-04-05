@@ -537,32 +537,32 @@ export async function fetchSwayamHTML(url) {
 }
 
 /**
- * FINAL BOSS FIX: Robust AI Syllabus Parser (Time-Aware + Bulletproof Sanitizer)
+ * BILLION-DOLLAR FIX: "Swayam Decoder" AI Syllabus Parser
+ * Handles full syllabi OR just summary sidebars (Duration: X Weeks).
  */
 export async function parseSwayamSyllabus(text) {
-    if (!text || text.length < 50) {
-        throw new Error("Text too short. Please paste the full syllabus or Course Layout.");
+    if (!text || text.length < 20) {
+        throw new Error("Text too short. Please paste the Course Summary or Syllabus.");
     }
 
-    const today = new Date().toISOString();
+    const today = new Date().toISOString().split('T')[0];
     
-    // Directive 3: Inject 'Time Awareness'
     const systemPrompt = `
-    You are an elite academic extractor for StudentOS. 
-    The current date is ${today}.
+    You are an intelligent Swayam course parser. The user will paste raw text from a course page. 
+    It might be a detailed syllabus, OR it might just be the summary sidebar.
     
-    TASK: Read the provided syllabus text. Determine the total number of weeks. Generate an array of JSON objects.
+    1. Extract the Course Name (usually at the very top).
+    2. Determine the Number of Weeks (Look for 'Duration: X Weeks' or count the modules).
+    3. Find the Start Date. If no start date is listed, use today's date: ${today}.
+    4. Generate a JSON array of assignments. There must be EXACTLY one object per week.
+    5. If there are no module names in the text, name them 'Week 1 Assignment', 'Week 2 Assignment', etc.
+    6. Calculate the 'dueDate' by adding 7 days sequentially for each week, starting from 7 days AFTER the Start Date.
     
-    RULES:
-    1. Output MUST be ONLY a raw JSON array.
-    2. Extract exact course name.
-    3. Identify each week/module. Use "Week 01", "Week 02", etc.
-    4. Space the 'dueDate' for each week EXACTLY 7 days apart, starting from 7 days AFTER today's date (${new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().split('T')[0]}).
-    5. Schema Enforcement: [{"courseName": "Name", "moduleName": "Week 1", "dueDate": "YYYY-MM-DD"}]
-    6. Always include "Swayam Exam Fee" and "Final Proctored Exam" at appropriate future dates.
+    OUTPUT FORMAT: You must return strictly a raw JSON array and nothing else. No markdown backticks, no conversational text.
+    Schema: [{"courseName": "String", "moduleName": "String", "dueDate": "YYYY-MM-DD"}]
     `;
 
-    const userPrompt = `Course Content: "${text.substring(0, 7000)}"`;
+    const userPrompt = `Course Content: "${text.substring(0, 8000)}"`;
 
     try {
         const response = await fetch(GROQ_API_URL, {
@@ -586,18 +586,15 @@ export async function parseSwayamSyllabus(text) {
         const data = await response.json();
         let rawResponse = data.choices[0]?.message?.content || "[]";
         
-        // Directive 4: Bulletproof JSON Sanitizer
-        // Strip markdown backticks if AI includes them
+        // Bulletproof JSON Sanitizer
         rawResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-
-        // Extract only the array portion
         const arrayMatch = rawResponse.match(/\[[\s\S]*\]/);
         if (!arrayMatch) throw new Error("No JSON array found in AI response");
 
         const finalData = JSON.parse(arrayMatch[0]);
         return Array.isArray(finalData) ? finalData : (finalData.assignments || finalData.data || []);
     } catch (e) {
-        console.error("Master Parser Error:", e);
+        console.error("Decoder Parse Error:", e);
         throw e;
     }
 }
