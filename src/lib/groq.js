@@ -537,29 +537,27 @@ export async function fetchSwayamHTML(url) {
 }
 
 /**
- * BILLION-DOLLAR FIX: "Swayam Decoder" AI Syllabus Parser
- * Handles full syllabi OR just summary sidebars (Duration: X Weeks).
+ * HYBRID METHOD: AI Data Extractor
+ * Only extracts parameters. JavaScript handles the schedule generation.
  */
 export async function parseSwayamSyllabus(text) {
     if (!text || text.length < 20) {
-        throw new Error("Text too short. Please paste the Course Summary or Syllabus.");
+        throw new Error("Text too short. Please paste the Course Summary.");
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString();
     
     const systemPrompt = `
-    You are an intelligent Swayam course parser. The user will paste raw text from a course page. 
-    It might be a detailed syllabus, OR it might just be the summary sidebar.
+    You are a course data extractor for StudentOS. 
+    Read the provided text and extract these 3 parameters. 
+    Today is ${today}.
     
-    1. Extract the Course Name (usually at the very top).
-    2. Determine the Number of Weeks (Look for 'Duration: X Weeks' or count the modules).
-    3. Find the Start Date. If no start date is listed, use today's date: ${today}.
-    4. Generate a JSON array of assignments. There must be EXACTLY one object per week.
-    5. If there are no module names in the text, name them 'Week 1 Assignment', 'Week 2 Assignment', etc.
-    6. Calculate the 'dueDate' by adding 7 days sequentially for each week, starting from 7 days AFTER the Start Date.
+    1. Course Name (Usually the title).
+    2. Total Number of Weeks (Look for 'Duration: X Weeks').
+    3. Start Date (ISO format YYYY-MM-DD). If missing, guess the nearest Monday.
     
-    OUTPUT FORMAT: You must return strictly a raw JSON array and nothing else. No markdown backticks, no conversational text.
-    Schema: [{"courseName": "String", "moduleName": "String", "dueDate": "YYYY-MM-DD"}]
+    Output MUST be strictly a single JSON object.
+    Schema: { "courseName": "string", "totalWeeks": number, "startDate": "YYYY-MM-DD" }
     `;
 
     const userPrompt = `Course Content: "${text.substring(0, 8000)}"`;
@@ -584,17 +582,16 @@ export async function parseSwayamSyllabus(text) {
 
         if (!response.ok) throw new Error("Groq API error");
         const data = await response.json();
-        let rawResponse = data.choices[0]?.message?.content || "[]";
+        const content = data.choices[0]?.message?.content || "{}";
         
-        // Bulletproof JSON Sanitizer
-        rawResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const arrayMatch = rawResponse.match(/\[[\s\S]*\]/);
-        if (!arrayMatch) throw new Error("No JSON array found in AI response");
+        // Bulletproof JSON Sanitization
+        let cleanContent = content.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("No JSON object found");
 
-        const finalData = JSON.parse(arrayMatch[0]);
-        return Array.isArray(finalData) ? finalData : (finalData.assignments || finalData.data || []);
+        return JSON.parse(jsonMatch[0]);
     } catch (e) {
-        console.error("Decoder Parse Error:", e);
+        console.error("Hybrid Extractor Error:", e);
         throw e;
     }
 }

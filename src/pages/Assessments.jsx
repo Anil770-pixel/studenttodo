@@ -32,24 +32,55 @@ const Assessments = () => {
         if (!syllabusText.trim() || !auth.currentUser) return;
         setIsParsing(true);
         try {
-            const parsedItems = await parseSwayamSyllabus(syllabusText);
+            // 1. Hybrid Method: AI only extracts core parameters
+            const data = await parseSwayamSyllabus(syllabusText);
             
-            if (!parsedItems || parsedItems.length === 0) {
-                alert("AI couldn't find any assignments in that text. Try pasting the 'Course Layout' section.");
-                return;
-            }
+            const weeks = data.totalWeeks || 4; // Fallback to 4
+            const startDate = new Date(data.startDate || new Date());
+            const courseName = data.courseName || "Unknown Course";
 
             const batch = writeBatch(db);
-            parsedItems.forEach(item => {
-                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
-                
-                // Blueprint Schema Enforcement & Mapping
-                batch.set(docRef, {
-                    courseName: item.courseName || "Unknown Course",
-                    weekNumber: item.moduleName || "General Milestone", // Map moduleName to weekNumber
-                    lastDate: item.dueDate || new Date().toISOString().split('T')[0], // Map dueDate to lastDate
+            const generatedAssignments = [];
+
+            // 2. Deterministic Loop: JavaScript handles the math (100% Reliable)
+            for (let i = 1; i <= weeks; i++) {
+                const dueDate = new Date(startDate);
+                dueDate.setDate(startDate.getDate() + (i * 7)); // Add 7 days per week
+
+                const assignment = {
+                    courseName: courseName,
+                    weekNumber: `Week ${i} Assignment`,
+                    lastDate: dueDate.toISOString().split('T')[0],
                     status: 'pending',
                     type: 'swayam_assessment',
+                    createdAt: new Date().toISOString()
+                };
+                
+                generatedAssignments.push(assignment);
+                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
+                batch.set(docRef, assignment);
+            }
+
+            // 3. Add Exam Milestones (Standard)
+            const feeDate = new Date(startDate);
+            feeDate.setDate(startDate.getDate() + 21); // ~3 weeks in
+            
+            const examDate = new Date(startDate);
+            examDate.setDate(startDate.getDate() + (weeks * 7) + 14); // ~2 weeks after last assignment
+
+            const milestones = [
+                { title: "Exam Fee Registration", date: feeDate, type: 'swayam_fee' },
+                { title: "Final Proctored Exam", date: examDate, type: 'swayam_exam' }
+            ];
+
+            milestones.forEach(m => {
+                const docRef = doc(collection(db, "users", auth.currentUser.uid, "assessments"));
+                batch.set(docRef, {
+                    courseName: courseName,
+                    weekNumber: m.title,
+                    lastDate: m.date.toISOString().split('T')[0],
+                    status: 'pending',
+                    type: m.type,
                     createdAt: new Date().toISOString()
                 });
             });
@@ -57,10 +88,10 @@ const Assessments = () => {
             await batch.commit();
             setIsAddModalOpen(false);
             setSyllabusText('');
-            alert(`AI Shield Activated! Tracked ${parsedItems.length} accurate course milestones.`);
+            alert(`AI Hybrid Shield Activated! Generated ${weeks} weeks for ${courseName}.`);
         } catch (error) {
-            console.error("AI Parse Error:", error);
-            alert("AI Parse Error: Ensure you pasted the syllabus text correctly. Try copying from 'About Course' again.");
+            console.error("Hybrid Parse Error:", error);
+            alert("AI could not extract parameters. Try copying the 'Course Summary' section again.");
         } finally {
             setIsParsing(false);
         }
