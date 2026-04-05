@@ -509,17 +509,29 @@ Output ONLY a valid JSON object:
     }
 }
 /**
- * Fetches course HTML via allorigins.win proxy to bypass CORS.
+ * Fetches course HTML via a proxy (with fallback) to bypass CORS.
  */
 export async function fetchSwayamHTML(url) {
+    // Primary: allorigins.win
     try {
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
         const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error("Proxy fetch failed");
-        const data = await response.json();
-        return data.contents; // The raw HTML
+        if (response.ok) {
+            const data = await response.json();
+            if (data.contents) return data.contents;
+        }
+    } catch (e) {
+        console.warn("Primary proxy failed, trying fallback...");
+    }
+
+    // Fallback: corsproxy.io
+    try {
+        const fallbackUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const response = await fetch(fallbackUrl);
+        if (response.ok) return await response.text();
+        throw new Error("Both proxies failed");
     } catch (error) {
-        console.error("Swayam Fetch Error:", error);
+        console.error("Swayam Fetch Error (Final):", error);
         throw error;
     }
 }

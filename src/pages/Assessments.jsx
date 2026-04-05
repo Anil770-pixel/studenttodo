@@ -60,8 +60,10 @@ const Assessments = () => {
 
     const handleAISmartLink = async () => {
         if (!courseUrl.trim() || !auth.currentUser) return;
-        if (!courseUrl.includes("swayam")) {
-            alert("Please provide a valid Swayam course link.");
+        
+        // Validation for full Swayam preview links
+        if (!courseUrl.includes("swayam") || !courseUrl.includes("/preview/")) {
+            alert("⚠️ INCOMPLETE LINK: Please paste the full Course Preview URL.\n\nExample: https://onlinecourses.swayam2.ac.in/e-learning/preview/ntr26_ed109");
             return;
         }
         
@@ -71,7 +73,7 @@ const Assessments = () => {
             const items = await parseSwayamSyllabus(html, true); // true for isHTML
             
             if (!items || items.length === 0) {
-                alert("AI couldn't extract details from that link. Try the 'Smart Paste' tab instead.");
+                alert("AI Error: Found the page, but couldn't see the syllabus layout. Try the 'Paste' tab instead.");
                 return;
             }
 
@@ -90,7 +92,7 @@ const Assessments = () => {
             alert(`AI Smart Link Success! Syncing ${items.length} course assignments.`);
         } catch (error) {
             console.error("Link Analysis Error:", error);
-            alert("Failed to analyze the link. Please check your connection or use the 'Smart Paste' tab.");
+            alert("⚠️ CONNECTION ERROR: The Swayam portal blocked the request or the link is broken. \n\nFIX: Try copying the 'Course Layout' text and using the 'Paste' tab instead.");
         } finally {
             setIsParsing(false);
         }
